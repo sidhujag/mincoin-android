@@ -16,11 +16,11 @@
 
 package com.google.litecoin.core;
 
-import com.google.litecoin.script.Script;
-import com.google.litecoin.script.ScriptBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.litecoin.script.Script;
+import com.google.litecoin.script.ScriptBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,9 +35,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
-import static com.google.litecoin.core.Utils.doubleDigest;
-import static com.google.litecoin.core.Utils.doubleDigestTwoBuffers;
-import static com.google.litecoin.core.Utils.scryptDigest;
+import static com.google.litecoin.core.Utils.*;
 
 /**
  * <p>A block is a group of transactions, and is one of the fundamental data structures of the Bitcoin system.
@@ -169,7 +167,14 @@ public class Block extends Message {
      * </p>
      */
     public BigInteger getBlockInflation(int height) {
-        return Utils.toNanoCoins(50, 0).shiftRight(height / params.getSubsidyDecreaseBlockCount());
+        if(height<1440) return Utils.toNanoCoins(500, 0);			//720000 coins in first day
+        else if(height<2880) return Utils.toNanoCoins(100, 0);		//144000 coins in second day
+        else if(height<4320) return Utils.toNanoCoins(50, 0);		//72000 coins in third day
+        BigInteger nSubsidy = Utils.toNanoCoins(2, 0);					//2880 coins thereafter
+
+        //10 million total coins
+        if(height>4532000) nSubsidy=BigInteger.ZERO;
+        return nSubsidy;
     }
 
     private void readObject(ObjectInputStream ois) throws ClassNotFoundException, IOException {

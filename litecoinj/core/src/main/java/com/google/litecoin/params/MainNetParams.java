@@ -34,12 +34,14 @@ public class MainNetParams extends NetworkParameters {
         genesisBlock = createGenesis(this);
         interval = INTERVAL;
         targetTimespan = TARGET_TIMESPAN;
-        proofOfWorkLimit = Utils.decodeCompactBits(0x1e0fffffL);
+        proofOfWorkLimit = Utils.decodeCompactBits(520093695);
+        proofOfWorkLimit = proofOfWorkLimit.negate();
+        long bits = proofOfWorkLimit.longValue();
         addressHeader = 48;
         p2shHeader = 5;
         acceptableAddressCodes = new int[] { addressHeader, p2shHeader };
         dumpedPrivateKeyHeader = 128;
-        port = 9333;
+        port = 9334;
         packetMagic = 0xfbc0b6db;
         genesisBlock.setDifficultyTarget(0x1e0ffff0L);
         genesisBlock.setTime(1317972665L);
@@ -81,13 +83,14 @@ public class MainNetParams extends NetworkParameters {
         try {
             // A script containing the difficulty bits and the following message:
             //
-            //   "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks"
+            //   "NY Times 05/Oct/2011 Steve Jobs, Apple’s Visionary, Dies at 56";
             byte[] bytes = Hex.decode
                     ("04b217bb4e022309");
             t.addInput(new TransactionInput(n, t, bytes));
             ByteArrayOutputStream scriptPubKeyBytes = new ByteArrayOutputStream();
             Script.writeBytes(scriptPubKeyBytes, Hex.decode
-                    ("41044870341873accab7600d65e204bb4ae47c43d20c562ebfbf70cbcb188da98dec8b5ccf0526c8e4d954c6b47b898cc30adf1ff77c2e518ddc9785b87ccb90b8cdac"));
+                    ("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9"));
+
             scriptPubKeyBytes.write(ScriptOpCodes.OP_CHECKSIG);
             t.addOutput(new TransactionOutput(n, t, Utils.toNanoCoins(50, 0), scriptPubKeyBytes.toByteArray()));
         } catch (Exception e) {

@@ -17,17 +17,14 @@
 
 package de.schildbach.litecoinwallet;
 
-import java.io.File;
-import java.nio.charset.Charset;
-
 import android.os.Environment;
 import android.text.format.DateUtils;
-
 import com.google.litecoin.core.NetworkParameters;
 import com.google.litecoin.params.MainNetParams;
 import com.google.litecoin.params.TestNet3Params;
 
-import de.schildbach.litecoinwallet.R;
+import java.io.File;
+import java.nio.charset.Charset;
 
 /**
  * @author Andreas Schildbach
@@ -52,8 +49,8 @@ public class Constants
 
 	public static final String CHECKPOINTS_FILENAME = "checkpoints" + FILENAME_NETWORK_SUFFIX;
 
-	private static final String BLOCKEXPLORER_BASE_URL_PROD = "http://explorer.litecoin.net/";
-	private static final String BLOCKEXPLORER_BASE_URL_TEST = "http://explorer.litecoin.net/";
+	private static final String BLOCKEXPLORER_BASE_URL_PROD = "http://blockexplorer.vircurpool.com";
+	private static final String BLOCKEXPLORER_BASE_URL_TEST = "http://blockexplorer.vircurpool.com";
 	public static final String BLOCKEXPLORER_BASE_URL = NETWORK_PARAMETERS.getId().equals(NetworkParameters.ID_MAINNET) ? BLOCKEXPLORER_BASE_URL_PROD
 			: BLOCKEXPLORER_BASE_URL_TEST;
 

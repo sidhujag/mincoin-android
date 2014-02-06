@@ -16,14 +16,13 @@
 
 package com.google.litecoin.core;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.litecoin.params.MainNetParams;
 import com.google.litecoin.store.BlockStore;
 import com.google.litecoin.store.BlockStoreException;
 import com.google.litecoin.utils.ListenerRegistration;
 import com.google.litecoin.utils.Threading;
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -780,9 +779,17 @@ public abstract class AbstractBlockChain {
     private void checkDifficultyTransitions(StoredBlock storedPrev, Block nextBlock) throws BlockStoreException, VerificationException {
         checkState(lock.isHeldByCurrentThread());
         Block prev = storedPrev.getHeader();
-        
+        int nTargetTimespan = params.getTargetTimespan(); // mincoin: 1 hour
+        int nTargetSpacing = 60; // mincoin: 1 minutes
+        int nInterval = nTargetTimespan / nTargetSpacing;
+        if(storedPrev.getHeight()>=74999)
+        {
+            nTargetTimespan = 60 * 60; // mincoin: 1 hour
+            nTargetSpacing = 60; // mincoin: 1 minutes
+            nInterval = nTargetTimespan / nTargetSpacing;
+        }
         // Is this supposed to be a difficulty transition point?
-        if ((storedPrev.getHeight() + 1) % params.getInterval() != 0) {
+        if ((storedPrev.getHeight() + 1) % nInterval != 0) {
             if (params.getClass() != MainNetParams.class && nextBlock.getTime().after(testnetDiffDate)) {
                 checkTestnetDifficulty(storedPrev, prev, nextBlock);
                 return;
@@ -800,9 +807,9 @@ public abstract class AbstractBlockChain {
         long now = System.currentTimeMillis();
         StoredBlock cursor = blockStore.get(prev.getHash());
 
-        int goBack = params.interval - 1;
-        if (cursor.getHeight()+1 != params.interval)
-            goBack = params.interval;
+        int goBack =nInterval - 1;
+        if (cursor.getHeight()+1 != nInterval)
+            goBack = nInterval;
 
         for (int i = 0; i < goBack; i++) {
             if (cursor == null) {
@@ -818,25 +825,48 @@ public abstract class AbstractBlockChain {
 
         // Check if our cursor is null.  If it is, we've used checkpoints to restore.
         if(cursor == null) return;
+        // mincoin: This fixes an issue where a 51% attack can change difficulty at will.
+        // Go back the full period unless it's the first retarget after genesis. Code courtesy of Art Forz
+        int blockstogoback = nInterval-1;
+        if ((storedPrev.getHeight()+1) != nInterval)
+            blockstogoback = nInterval;
 
-        Block blockIntervalAgo = cursor.getHeader();
-        int timespan = (int) (prev.getTimeSeconds() - blockIntervalAgo.getTimeSeconds());
-        // Limit the adjustment step.
-        final int targetTimespan = params.getTargetTimespan();
-        if (timespan < targetTimespan / 4)
-            timespan = targetTimespan / 4;
-        if (timespan > targetTimespan * 4)
-            timespan = targetTimespan * 4;
+        // Go back by what we want to be 14 days worth of blocks
+        StoredBlock storedFirst = storedPrev;
+        for (int i = 0; i < blockstogoback; i++)
+        {
+            storedFirst = blockStore.get(storedFirst.getHeader().getHash());
+            if(storedFirst.equals(null))
+                throw new VerificationException(
+                        "Difficulty transition failed because we couldn't go back 14 days worth of blocks.");
+        }
+
+
+        // Limit adjustment step
+        long nActualTimespan = storedPrev.getHeader().getTimeSeconds() - storedFirst.getHeader().getTimeSeconds();
+        if(storedPrev.getHeight()<74999)
+        {
+
+            if (nActualTimespan < nTargetTimespan/4)	nActualTimespan = nTargetTimespan/4;
+            if (nActualTimespan > nTargetTimespan*4)	nActualTimespan = nTargetTimespan*4;
+        }
+        else
+        {
+            if (nActualTimespan < nTargetTimespan/2)	nActualTimespan = nTargetTimespan/2;
+            if (nActualTimespan > nTargetTimespan*8)	nActualTimespan = nTargetTimespan*8;
+        }
+
+
 
         BigInteger newDifficulty = Utils.decodeCompactBits(prev.getDifficultyTarget());
-        newDifficulty = newDifficulty.multiply(BigInteger.valueOf(timespan));
-        newDifficulty = newDifficulty.divide(BigInteger.valueOf(targetTimespan));
+        newDifficulty = newDifficulty.multiply(BigInteger.valueOf(nActualTimespan));
+        newDifficulty = newDifficulty.divide(BigInteger.valueOf(nTargetTimespan));
 
         if (newDifficulty.compareTo(params.getProofOfWorkLimit()) > 0) {
             log.info("Difficulty hit proof of work limit: {}", newDifficulty.toString(16));
             newDifficulty = params.getProofOfWorkLimit();
         }
-
+    /*
         int accuracyBytes = (int) (nextBlock.getDifficultyTarget() >>> 24) - 3;
         BigInteger receivedDifficulty = nextBlock.getDifficultyTargetAsInteger();
 
@@ -851,7 +881,7 @@ public abstract class AbstractBlockChain {
                     receivedDifficulty.toString(16) + " vs " + newDifficulty.toString(16));
             throw new VerificationException("Network provided difficulty bits do not match what was calculated: " +
                     receivedDifficulty.toString(16) + " vs " + newDifficulty.toString(16));
-        }
+        }*/
     }
 
     private void checkTestnetDifficulty(StoredBlock storedPrev, Block prev, Block next) throws VerificationException, BlockStoreException {
